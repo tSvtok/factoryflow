@@ -1,0 +1,52 @@
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:7.0
+    container_name: factoryflow_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-factoryflow}
+    ports:
+      # Expose MongoDB port to host for local inspection (e.g. MongoDB Compass, mongosh)
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      # Persistent named volume for database data
+      - factoryflow_mongodb_data:/data/db
+    healthcheck:
+      # Ping the database using mongosh to ensure MongoDB is ready to accept connections
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Backend Express Application
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: factoryflow_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      MONGO_HOST: ${MONGO_HOST:-mongodb}
+      MONGO_PORT: ${MONGO_PORT:-27017}
+      MONGO_DATABASE: ${MONGO_DATABASE:-factoryflow}
+      # Networking: Within Docker Compose, containers communicate via service names (mongodb), NOT localhost
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/factoryflow}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      # Bind mount host source code for instant hot reload
+      - ./:/app
+      # Anonymous volume to preserve container-installed node_modules and prevent host overwrite
+      - /app/node_modules
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+volumes:
+  # Named volume for MongoDB data persistence
+  factoryflow_mongodb_data:
+    name: factoryflow_mongodb_data
