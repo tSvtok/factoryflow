@@ -1,19 +1,20 @@
-FROM node:22-alpine
+FROM node:20-alpine
 
-# Set working directory
+# Définir le répertoire de travail
 WORKDIR /app
 
-# Copy package manifests first to leverage Docker layer caching
+# Copier uniquement les fichiers de dépendances pour optimiser le cache Docker
 COPY package*.json ./
 
-# Install project dependencies
+# Installer les dépendances locales et nodemon globalement pour le hot-reload
 RUN npm install
+RUN npm install -g nodemon
 
-# Copy application source code
+# Copier le reste des fichiers du projet
 COPY . .
 
-# Expose backend port
-EXPOSE 3000
+# Exposer le port de l'application
+EXPOSE 5000
 
-# Start application in development mode with nodemon
-CMD ["npm", "run", "dev"]
+# Démarrer avec nodemon (le flag -L permet la détection des changements de fichiers via les volumes Docker)
+CMD ["nodemon", "-L", "src/server.js"]
